@@ -1,0 +1,36 @@
+meta {
+  name: Download File
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{scheme}}://{{host}}:{{port}}/static/{{filePermalink}}
+  body: none
+  auth: none
+}
+
+docs {
+  # Download File
+  
+  Downloads the file content by its permalink. The response streams the raw file bytes with appropriate Content-Type and Content-Disposition headers.
+  
+  ## Path Parameters
+  
+  | Parameter | Type | Description |
+  |-----------|------|-------------|
+  | *permalink | string | The file's permalink path (e.g. `images/hero-banner.png`) |
+  
+  ## Response Headers
+  
+  | Header | Description |
+  |--------|-------------|
+  | Content-Type | The file's MIME type |
+  | Content-Length | File size in bytes |
+  | Content-Disposition | `inline; filename="<filename>"` |
+  | Cache-Control | `public, max-age=3600` |
+  
+  ## Response Body
+  
+  Raw file bytes.
+}

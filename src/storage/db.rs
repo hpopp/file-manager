@@ -1,0 +1,176 @@
+use redb::{Database as RedbDatabase, ReadTransaction, ReadableTable, WriteTransaction};
+use std::path::Path;
+use std::sync::Arc;
+use thiserror::Error;
+
+use super::tables::*;
+
+#[derive(Debug, Error)]
+pub enum DatabaseError {
+    #[error("Commit error: {0}")]
+    Commit(Box<redb::CommitError>),
+    #[error("Database error: {0}")]
+    Redb(Box<redb::Error>),
+    #[error("Database error: {0}")]
+    RedbDatabase(Box<redb::DatabaseError>),
+    #[error("Deserialization error: {0}")]
+    Deserialization(#[from] rmp_serde::decode::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] rmp_serde::encode::Error),
+    #[error("Storage error: {0}")]
+    Storage(Box<redb::StorageError>),
+    #[error("Table error: {0}")]
+    Table(Box<redb::TableError>),
+    #[error("Transaction error: {0}")]
+    Transaction(Box<redb::TransactionError>),
+}
+
+impl From<redb::CommitError> for DatabaseError {
+    fn from(e: redb::CommitError) -> Self {
+        DatabaseError::Commit(Box::new(e))
+    }
+}
+
+impl From<redb::DatabaseError> for DatabaseError {
+    fn from(e: redb::DatabaseError) -> Self {
+        DatabaseError::RedbDatabase(Box::new(e))
+    }
+}
+
+impl From<redb::Error> for DatabaseError {
+    fn from(e: redb::Error) -> Self {
+        DatabaseError::Redb(Box::new(e))
+    }
+}
+
+impl From<redb::StorageError> for DatabaseError {
+    fn from(e: redb::StorageError) -> Self {
+        DatabaseError::Storage(Box::new(e))
+    }
+}
+
+impl From<redb::TableError> for DatabaseError {
+    fn from(e: redb::TableError) -> Self {
+        DatabaseError::Table(Box::new(e))
+    }
+}
+
+impl From<redb::TransactionError> for DatabaseError {
+    fn from(e: redb::TransactionError) -> Self {
+        DatabaseError::Transaction(Box::new(e))
+    }
+}
+
+pub struct Database {
+    db: Arc<RedbDatabase>,
+}
+
+impl Clone for Database {
+    fn clone(&self) -> Self {
+        Self {
+            db: Arc::clone(&self.db),
+        }
+    }
+}
+
+/// Statistics from a purge operation
+#[derive(Debug, Default)]
+pub struct PurgeStats {
+    pub files: u64,
+}
+
+impl Database {
+    /// Open or create a database at the given path
+    pub fn open<P: AsRef<Path>>(data_dir: P) -> Result<Self, DatabaseError> {
+        std::fs::create_dir_all(data_dir.as_ref())?;
+        let db_path = data_dir.as_ref().join("file-manager.redb");
+        let db = Arc::new(RedbDatabase::create(db_path)?);
+
+        // Initialize application tables
+        let write_txn = db.begin_write()?;
+        {
+            let _ = write_txn.open_table(FILES)?;
+            let _ = write_txn.open_table(FILE_PERMALINKS)?;
+            let _ = write_txn.open_table(SUBJECT_FILES)?;
+        }
+        write_txn.commit()?;
+
+        Ok(Self { db })
+    }
+
+    /// Get a reference to the underlying redb database (for sharing with muster).
+    pub fn inner(&self) -> Arc<RedbDatabase> {
+        Arc::clone(&self.db)
+    }
+
+    /// Begin a read transaction
+    pub fn begin_read(&self) -> Result<ReadTransaction, DatabaseError> {
+        Ok(self.db.begin_read()?)
+    }
+
+    /// Begin a write transaction
+    pub fn begin_write(&self) -> Result<WriteTransaction, DatabaseError> {
+        Ok(self.db.begin_write()?)
+    }
+
+    // ========================================================================
+    // Admin operations
+    // ========================================================================
+
+    /// Purge all data - for testing only
+    pub fn purge_all(&self) -> Result<PurgeStats, DatabaseError> {
+        let write_txn = self.begin_write()?;
+        let mut stats = PurgeStats::default();
+
+        // Clear files
+        {
+            let table = write_txn.open_table(FILES)?;
+            let keys: Vec<String> = table
+                .iter()?
+                .map(|r| r.map(|(k, _)| k.value().to_string()))
+                .collect::<Result<Vec<_>, _>>()?;
+            drop(table);
+
+            let mut table = write_txn.open_table(FILES)?;
+            for key in keys {
+                table.remove(key.as_str())?;
+                stats.files += 1;
+            }
+        }
+
+        // Clear permalink index
+        {
+            let table = write_txn.open_table(FILE_PERMALINKS)?;
+            let keys: Vec<String> = table
+                .iter()?
+                .map(|r| r.map(|(k, _)| k.value().to_string()))
+                .collect::<Result<Vec<_>, _>>()?;
+            drop(table);
+
+            let mut table = write_txn.open_table(FILE_PERMALINKS)?;
+            for key in keys {
+                table.remove(key.as_str())?;
+            }
+        }
+
+        // Clear subject index
+        {
+            let table = write_txn.open_table(SUBJECT_FILES)?;
+            let keys: Vec<String> = table
+                .iter()?
+                .map(|r| r.map(|(k, _)| k.value().to_string()))
+                .collect::<Result<Vec<_>, _>>()?;
+            drop(table);
+
+            let mut table = write_txn.open_table(SUBJECT_FILES)?;
+            for key in keys {
+                table.remove(key.as_str())?;
+            }
+        }
+
+        write_txn.commit()?;
+        Ok(stats)
+    }
+}

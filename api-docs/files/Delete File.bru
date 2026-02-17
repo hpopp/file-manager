@@ -1,0 +1,32 @@
+meta {
+  name: Delete File
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{scheme}}://{{host}}:{{port}}/files/{{fileId}}
+  body: none
+  auth: none
+}
+
+docs {
+  # Delete File
+  
+  Deletes a file's metadata and its content from object storage.
+  
+  ## Path Parameters
+  
+  | Parameter | Type | Description |
+  |-----------|------|-------------|
+  | id | UUID | The file's unique identifier |
+  
+  ## Response
+  
+  ```json
+  {
+    "status": "success",
+    "data": null
+  }
+  ```
+}

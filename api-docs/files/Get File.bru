@@ -1,0 +1,43 @@
+meta {
+  name: Get File
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{scheme}}://{{host}}:{{port}}/files/{{fileId}}
+  body: none
+  auth: none
+}
+
+docs {
+  # Get File
+  
+  Retrieves metadata for a single file by its UUID.
+  
+  ## Path Parameters
+  
+  | Parameter | Type | Description |
+  |-----------|------|-------------|
+  | id | UUID | The file's unique identifier |
+  
+  ## Response
+  
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "mime_type": "image/png",
+      "file_type": "image",
+      "byte_size": 204800,
+      "permalink": "images/hero-banner.png",
+      "name": "Hero Banner",
+      "alt": "Homepage hero banner image",
+      "description": "Main banner displayed on the landing page",
+      "created_at": "2026-02-10T12:00:00Z",
+      "updated_at": "2026-02-10T12:00:00Z"
+    }
+  }
+  ```
+}

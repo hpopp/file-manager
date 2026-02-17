@@ -1,0 +1,72 @@
+meta {
+  name: Create File
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{scheme}}://{{host}}:{{port}}/files
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  file: @file(/path/to/sample.png)
+  permalink: images/hero-banner.png
+  name: Hero Banner
+  alt: Homepage hero banner image
+  description: Main banner displayed on the landing page
+  subject_id: user-123
+  metadata: {"width": 1920, "height": 1080, "camera": "Canon EOS R5"}
+}
+
+vars:post-response {
+  fileId: res.body.data.id
+  filePermalink: res.body.data.permalink
+}
+
+docs {
+  # Create File
+  
+  Uploads a new file via multipart form-data. The file binary and metadata are sent together.
+  
+  ## Multipart Fields
+  
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | file | binary | Yes | The file to upload |
+  | permalink | string | Yes | Unique path for the `/static/` download route |
+  | name | string | No | Display name / title |
+  | alt | string | No | Alt text for accessibility |
+  | description | string | No | Longer description for organization / search |
+  | subject_id | string | No | Owner identifier (user, org, etc.) for scoped lookups |
+  | metadata | JSON string | No | Arbitrary key-value metadata (sent as a JSON string) |
+  
+  ## Response
+  
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "mime_type": "image/png",
+      "file_type": "image",
+      "byte_size": 204800,
+      "permalink": "images/hero-banner.png",
+      "name": "Hero Banner",
+      "alt": "Homepage hero banner image",
+      "description": "Main banner displayed on the landing page",
+      "subject_id": "user-123",
+      "metadata": {
+        "width": 1920,
+        "height": 1080,
+        "camera": "Canon EOS R5"
+      },
+      "created_at": "2026-02-10T12:00:00Z",
+      "updated_at": "2026-02-10T12:00:00Z"
+    }
+  }
+  ```
+  
+  The MIME type is auto-detected from the uploaded file's content type or filename.
+}

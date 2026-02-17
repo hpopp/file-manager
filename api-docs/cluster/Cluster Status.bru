@@ -1,0 +1,35 @@
+meta {
+  name: Cluster Status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{scheme}}://{{host}}:{{port}}/_internal/cluster/status
+  body: none
+  auth: none
+}
+
+docs {
+  # Cluster Status
+  
+  Returns the current cluster state including node role, term, leader, and peer information.
+  
+  ## Response
+  
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "cluster_info": {
+        "node_id": "node-1",
+        "role": "Leader",
+        "term": 3,
+        "leader_id": "node-1",
+        "peers": [],
+        "sequence": 42
+      }
+    }
+  }
+  ```
+}

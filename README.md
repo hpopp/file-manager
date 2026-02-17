@@ -1,0 +1,88 @@
+[![CI](https://github.com/hpopp/file-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/hpopp/file-manager/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/hpopp/file-manager/commits/main)
+[![Last Updated](https://img.shields.io/github/last-commit/hpopp/file-manager.svg)](https://github.com/hpopp/file-manager/commits/main)
+
+# File Manager
+
+A unified internal API for file storage and CMS-like file management.
+
+## Project Dependencies
+
+- Rust 1.93+
+- Docker (optional, for clustered deployment)
+
+## Getting Started
+
+1. Clone the repository.
+
+```shell
+git clone https://github.com/hpopp/file-manager && cd file-manager
+```
+
+2. Build the project.
+
+```shell
+cargo build --release
+```
+
+3. Run the service.
+
+```shell
+cargo run --release
+```
+
+The service starts on `http://localhost:8080` with sensible defaults. No external database required.
+
+## Contributing
+
+### Testing
+
+Unit and integration tests can be run with `cargo test`.
+
+### Formatting
+
+This project uses `cargo fmt` for formatting.
+
+## Deployment
+
+Deployments require the following environment variables to be set in containers:
+
+| Key                       | Description                                           | Default        |
+| ------------------------- | ----------------------------------------------------- | -------------- |
+| `BIND_ADDRESS`            | HTTP server bind address.                             | `0.0.0.0:8080` |
+| `CLUSTER_PORT`            | TCP port for inter-node cluster communication.        | `9993`         |
+| `DATA_DIR`                | Data directory for embedded database.                 | `./data`       |
+| `DISCOVERY_DNS_NAME`      | DNS name for peer discovery. Enables DNS strategy.    |                |
+| `DISCOVERY_POLL_INTERVAL` | Discovery poll interval in seconds.                   | `5`            |
+| `GCS_BUCKET`              | GCS bucket name. Required when `STORAGE_BACKEND=gcs`. |                |
+| `GCS_CREDENTIALS_FILE`    | Path to GCS service account JSON.                     |                |
+| `LOCAL_STORAGE_PATH`      | Directory for local file storage.                     | `./files`      |
+| `LOG_FORMAT`              | Log output format: `gcp`, `json`, or `text`.          | `text`         |
+| `MAX_UPLOAD_SIZE`         | Maximum upload size in bytes.                         | `52428800`     |
+| `NODE_ID`                 | Unique node identifier.                               | Random UUID    |
+| `PEERS`                   | Comma-separated static peer addresses.                |                |
+| `RUST_LOG`                | Log level filter.                                     | `info`         |
+| `STORAGE_BACKEND`         | Object storage backend: `local` or `gcs`.             | `local`        |
+| `TEST_MODE`               | Enables dangerous operations like purge.              | `false`        |
+
+### Liveness
+
+A health check endpoint is available at `/_internal/health`.
+
+### Clustering
+
+For multi-node deployments, set `DISCOVERY_DNS_NAME` to a DNS name that resolves to all
+node IPs. This works with Docker Compose service names and Kubernetes headless Services. Alternatively,
+use `PEERS` for a static peer list.
+
+The included `docker-compose.yml` runs a 3-node cluster with DNS-based discovery.
+
+### API Documentation
+
+Full API documentation is available in `api-docs/` as a [Bruno](https://www.usebruno.com/) collection.
+
+## License
+
+Copyright (c) 2026 Henry Popp
+
+This project is MIT licensed. See the [LICENSE](LICENSE) for details.

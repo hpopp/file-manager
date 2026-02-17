@@ -1,0 +1,29 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{scheme}}://{{host}}:{{port}}/_internal/health
+  body: none
+  auth: none
+}
+
+docs {
+  # Health Check
+  
+  Returns the service health status and version.
+  
+  ## Response
+  
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "status": "ok",
+      "version": "0.1.0"
+    }
+  }
+  ```
+}

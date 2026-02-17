@@ -1,0 +1,54 @@
+meta {
+  name: Update File
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{scheme}}://{{host}}:{{port}}/files/{{fileId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Updated Banner",
+    "alt": "Updated alt text for the hero banner",
+    "permalink": "images/updated-hero-banner.png",
+    "subject_id": "org-456",
+    "metadata": {"width": 1920, "height": 1080, "reviewed": true}
+  }
+}
+
+docs {
+  # Update File
+  
+  Updates a file's mutable metadata fields. At least one field must be provided.
+  
+  Use `null` to clear an optional field, or omit it to leave unchanged.
+  
+  ## Path Parameters
+  
+  | Parameter | Type | Description |
+  |-----------|------|-------------|
+  | id | UUID | The file's unique identifier |
+  
+  ## Request Body
+  
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | name | string or null | No | Display name (null to clear) |
+  | alt | string or null | No | Alt text (null to clear) |
+  | description | string or null | No | Description (null to clear) |
+  | permalink | string | No | New unique permalink |
+  | subject_id | string or null | No | Owner identifier (null to clear) |
+  | metadata | object or null | No | Arbitrary key-value metadata (null to clear) |
+  
+  ## Response
+  
+  Returns the updated file metadata (same shape as Get File).
+}
