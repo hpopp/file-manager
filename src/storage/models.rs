@@ -3,6 +3,44 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+/// Three-state patch value for partial updates that survives serialization round-trips.
+/// Unlike `Option<Option<T>>`, each variant has a distinct wire representation.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub enum Patch<T> {
+    /// Field was not included in the request (no change).
+    #[default]
+    Absent,
+    /// Field was explicitly set to null (clear it).
+    Null,
+    /// Field was set to a new value.
+    Value(T),
+}
+
+impl<T> From<Option<Option<T>>> for Patch<T> {
+    fn from(v: Option<Option<T>>) -> Self {
+        match v {
+            None => Patch::Absent,
+            Some(None) => Patch::Null,
+            Some(Some(v)) => Patch::Value(v),
+        }
+    }
+}
+
+impl<T> Patch<T> {
+    /// Convert to the `Option<Option<&T>>` form that storage operations expect.
+    pub fn as_option(&self) -> Option<Option<&T>> {
+        match self {
+            Patch::Absent => None,
+            Patch::Null => Some(None),
+            Patch::Value(v) => Some(Some(v)),
+        }
+    }
+
+    pub fn is_absent(&self) -> bool {
+        matches!(self, Patch::Absent)
+    }
+}
+
 /// Classification of a file derived from its MIME type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -77,11 +115,16 @@ pub enum WriteOp {
     },
     UpdateFile {
         id: String,
-        alt: Option<Option<String>>,
-        description: Option<Option<String>>,
-        metadata: Option<Option<HashMap<String, serde_json::Value>>>,
-        name: Option<Option<String>>,
+        #[serde(default)]
+        alt: Patch<String>,
+        #[serde(default)]
+        description: Patch<String>,
+        #[serde(default)]
+        metadata: Patch<HashMap<String, serde_json::Value>>,
+        #[serde(default)]
+        name: Patch<String>,
         permalink: Option<String>,
-        subject_id: Option<Option<String>>,
+        #[serde(default)]
+        subject_id: Patch<String>,
     },
 }

@@ -45,12 +45,12 @@ impl muster::StateMachine for FileStateMachine {
             } => {
                 self.db.update_file(
                     id,
-                    alt.as_ref().map(|a| a.as_deref()),
-                    description.as_ref().map(|d| d.as_deref()),
-                    metadata.as_ref().map(|m| m.as_ref()),
-                    name.as_ref().map(|n| n.as_deref()),
+                    alt.as_option().map(|o| o.map(String::as_str)),
+                    description.as_option().map(|o| o.map(String::as_str)),
+                    metadata.as_option(),
+                    name.as_option().map(|o| o.map(String::as_str)),
                     permalink.as_deref(),
-                    subject_id.as_ref().map(|s| s.as_deref()),
+                    subject_id.as_option().map(|o| o.map(String::as_str)),
                 )?;
             }
         }

@@ -4,12 +4,13 @@ use axum::extract::{Multipart, Path, State};
 use axum::Json;
 use bytes::BytesMut;
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer, Serialize};
 use std::sync::Arc;
 
 use super::replication_error;
 use crate::api::response::{ApiError, AppJson, AppQuery, JSend, JSendPaginated, Pagination};
-use crate::storage::models::{FileRecord, FileType, WriteOp};
+use crate::storage::models::{FileRecord, FileType, Patch, WriteOp};
 use crate::AppState;
 
 // ============================================================================
@@ -34,17 +35,17 @@ pub struct FileResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UpdateFileRequest {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "nullable")]
     pub alt: Option<Option<String>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "nullable")]
     pub description: Option<Option<String>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "nullable")]
     pub metadata: Option<Option<HashMap<String, serde_json::Value>>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "nullable")]
     pub name: Option<Option<String>>,
     #[serde(default)]
     pub permalink: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "nullable")]
     pub subject_id: Option<Option<String>>,
 }
 
@@ -62,6 +63,15 @@ pub struct ListFilesParams {
 
 fn default_limit() -> u32 {
     20
+}
+
+/// Distinguishes between a missing field (`None`) and an explicit `null` (`Some(None)`).
+fn nullable<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    T: DeserializeOwned,
+    D: Deserializer<'de>,
+{
+    Ok(Some(Option::deserialize(deserializer)?))
 }
 
 // ============================================================================
@@ -269,21 +279,22 @@ pub async fn update_file(
     }
 
     // Verify the file exists
-    state
+    let existing = state
         .db
         .get_file(&id)
         .map_err(|e| ApiError::internal(e.to_string()))?
         .ok_or_else(|| ApiError::not_found("File not found"))?;
 
-    // If changing permalink, check uniqueness
+    // If changing permalink, check uniqueness (allow keeping the same permalink)
     if let Some(ref new_permalink) = req.permalink {
         if new_permalink.trim().is_empty() {
             return Err(ApiError::bad_request("permalink must not be empty"));
         }
-        if state
-            .db
-            .permalink_exists(new_permalink)
-            .map_err(|e| ApiError::internal(e.to_string()))?
+        if *new_permalink != existing.permalink
+            && state
+                .db
+                .permalink_exists(new_permalink)
+                .map_err(|e| ApiError::internal(e.to_string()))?
         {
             return Err(ApiError::conflict(format!(
                 "permalink '{new_permalink}' is already in use"
@@ -293,12 +304,12 @@ pub async fn update_file(
 
     let operation = WriteOp::UpdateFile {
         id: id.clone(),
-        alt: req.alt.clone(),
-        description: req.description.clone(),
-        metadata: req.metadata.clone(),
-        name: req.name.clone(),
+        alt: Patch::from(req.alt.clone()),
+        description: Patch::from(req.description.clone()),
+        metadata: Patch::from(req.metadata.clone()),
+        name: Patch::from(req.name.clone()),
         permalink: req.permalink.clone(),
-        subject_id: req.subject_id.clone(),
+        subject_id: Patch::from(req.subject_id.clone()),
     };
     state
         .node
